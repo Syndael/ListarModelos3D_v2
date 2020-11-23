@@ -1,12 +1,12 @@
 from __future__ import print_function
 import pickle
 import os
+import io
 import shutil
 import configparser
 import logging
 import telebot
 import mysql.connector
-import random
 import urllib
 import mimetypes
 import re
@@ -38,7 +38,7 @@ def main():
     logging.info("Recuperando rutas de Drive")
     for carpetaDrive in carpetasDrive:
         try:
-            ruta = obtenerRuta(carpetaDrive.get('id'), 1)
+            ruta = obtenerRuta(carpetaDrive.get('id'), False)
             if ruta not in dicCarpetas.keys():
                 dicCarpetas[ruta] = [carpetaDrive]
             else:
@@ -54,40 +54,124 @@ def main():
             dicCarpetasOrdenadas[k.get('name')] = k.get('id')
 
         for j in sorted(dicCarpetasOrdenadas.keys()):
-            enlaceDrive = "https://drive.google.com/open?id=%s" % (dicCarpetasOrdenadas[j])
-            logging.info("Path del %s: %s" %
-                         (dicCarpetasOrdenadas[j], obtenerRuta(dicCarpetasOrdenadas[j], 99)))
+            imagen = None
+            imagenEncontrada = False
+            response = buscarDrive(
+                '(mimeType != \'application/vnd.google-apps.folder\') and (trashed = false) and (\'' + dicCarpetasOrdenadas[j] + '\' in parents)')
+            ficheros = response.get('files', [])
+
+            enlaces = []
+            for file in ficheros:
+                nombre = file.get('name')
+                if '.PNG' in nombre or '.png' in nombre or '.JPEG' in nombre or '.jpeg' in nombre or '.jpg' in nombre or '.JPG' in nombre and imagenEncontrada is False:
+                    ficheroGdrive = getDriveService().files().get(fileId=file.get('id'), fields="webContentLink").execute()
+                    imagen = ficheroGdrive['webContentLink'].replace('&export=download', '')
+                    darPermisosLectura(file.get('id'))
+                    imagenEncontrada = True
+                if '.URL' in nombre or '.url' in nombre:
+                    enlace = getEnlaceFicheroUrl(file.get('id'))
+                    if enlace:
+                        enlaces.append(enlace)
+
+            modeloRuta = obtenerRuta(dicCarpetasOrdenadas[j], True)
+            modeloId = insertModelo(getNombreLimpio(j), imagen, modeloRuta)
+            enlaces.append("https://drive.google.com/open?id=%s" % (dicCarpetasOrdenadas[j]))
+            for enlace in enlaces:
+                insertEnlace(modeloId, enlace)
+
+            rutas = modeloRuta.split('/')
+            rutas.remove(rutas[0])
+            for etiqueta in rutas:
+                insertEtiqueta(modeloId, etiqueta)
 
     getConexion().commit()
     getCursor().close()
     getConexion().close()
 
 
-def getNombreLimpio(nombre=None):
-    return re.sub(r"[^a-zA-Z0-9 .]", "", nombre)
+def insertEnlace(modeloId, enlace):
+    queryGetIdWeb = "SELECT ID FROM webs_enlaces WHERE NOMBRE = %s"
+    queryInsertWeb = "INSERT INTO webs_enlaces(WEB, NOMBRE) VALUES(%s, %s)"
+    queryInsertEnlace = "INSERT INTO enlaces(ID_MODELO, ID_WEB, ENLACE) SELECT %s, %s, %s FROM DUAL WHERE NOT EXISTS (SELECT ENLACE FROM enlaces WHERE ENLACE = %s)"
+
+    idWebEncontrado = None
+    nombreWeb = getNombreWeb(enlace)
+    getCursor().execute(queryGetIdWeb, (nombreWeb, ))
+    for (id) in getCursor():
+        idWebEncontrado = id[0]
+
+    if idWebEncontrado is None:
+        getCursor().execute(queryInsertWeb, (getEnlaceWeb(enlace), nombreWeb))
+        idWebEncontrado = getCursor().lastrowid
+
+    getCursor().execute(queryInsertEnlace, (modeloId, idWebEncontrado, enlace, enlace))
 
 
-def insertModelo(nombreMod, enlaceDriveMod):
-    queryInsert = "INSERT INTO modelos(NOMBRE, IMG, PATH_DRIVE) SELECT %s, %s, %s FROM DUAL WHERE NOT EXISTS (SELECT ID FROM modelos WHERE NOMBRE = %s)"
+def getNombreWeb(enlace):
+    return enlace.replace('https://', '').replace('http://', '').replace('www.', '').split("/")[0]
+
+
+def getEnlaceWeb(enlace):
+    splitWeb = enlace.split("/")
+    return "%s//%s" % (splitWeb[0], splitWeb[2])
+
+
+def insertModelo(nombreMod, imagen, enlaceDriveMod):
+    queryInsert = "INSERT INTO modelos(NOMBRE, IMG, PATH_DRIVE) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE IMG = %s, PATH_DRIVE = %s, FECHA_MODIF = NOW()"
     queryGetId = "SELECT ID FROM modelos WHERE NOMBRE = %s"
 
-    getCursor().execute(queryInsert, (nombreMod, None, enlaceDriveMod, nombreMod))
-    nuevoId = getCursor().lastrowid
-    if(nuevoId is None):
-        return getCursor().execute(queryGetId, (nombreMod, ))
+    getCursor().execute(queryInsert, (nombreMod, imagen, enlaceDriveMod, imagen, enlaceDriveMod))
+    modeloId = getCursor().lastrowid
+    if modeloId is None:
+        for (id) in getCursor():
+            modeloId = id
 
-    return nuevoId
+    return modeloId
 
 
-def insertEtiqueta(nuevaEtiqueta):
-    queryInsert = "INSERT INTO etiquetas(ETIQUETA) SELECT (%s) FROM DUAL WHERE NOT EXISTS (SELECT ETIQUETA FROM etiquetas WHERE ETIQUETA = %s)"
-    queryGetId = "SELECT ID FROM etiquetas WHERE ETIQUETA = %s"
-    getCursor().execute(queryInsert, (nuevaEtiqueta, nuevaEtiqueta))
-    nuevoId = getCursor().lastrowid
-    if(nuevoId is None):
-        return getCursor().execute(queryGetId, (nuevaEtiqueta, ))
+def insertEtiqueta(modeloId, nuevaEtiqueta):
+    queryInsertEtiqueta = "INSERT INTO etiquetas(ETIQUETA) SELECT %s FROM DUAL WHERE NOT EXISTS (SELECT ETIQUETA FROM etiquetas WHERE ETIQUETA = %s)"
+    queryGetIdEtiqueta = "SELECT ID FROM etiquetas WHERE ETIQUETA = %s"
+    queryInsertModeloEtiqueta = "INSERT INTO modelo_x_etiqueta(ID_MODELO, ID_ETIQUETA) SELECT %s, %s FROM DUAL WHERE NOT EXISTS (SELECT * FROM modelo_x_etiqueta WHERE ID_MODELO = %s AND ID_ETIQUETA = %s)"
+    getCursor().execute(queryInsertEtiqueta, (nuevaEtiqueta, nuevaEtiqueta))
+    etiquetaId = getCursor().lastrowid
+    if(etiquetaId is None):
+        getCursor().execute(queryGetIdEtiqueta, (nuevaEtiqueta, ))
+        for (id) in getCursor():
+            etiquetaId = id[0]
 
-    return nuevoId
+    getCursor().execute(queryInsertModeloEtiqueta, (modeloId, etiquetaId, modeloId, etiquetaId))
+
+
+def getEnlaceFicheroUrl(id):
+    try:
+        resultado = None
+        ficheroUrl = getDriveService().files().get_media(fileId=id)
+        ficheroBytes = io.BytesIO()
+        ficheroDescarga = MediaIoBaseDownload(ficheroBytes, ficheroUrl)
+        descargado = False
+        while descargado is False:
+            descargado = ficheroDescarga.next_chunk()
+
+        ficheroBytes.seek(0)
+        ficheroCompleto = ficheroBytes.read().decode("utf-8")
+        ficheroBytes.close()
+        if 'InternetShortcut' in ficheroCompleto:
+            comienzoUrl = ficheroCompleto.index('URL=')
+            finUrl = ficheroCompleto.index('IDList=')
+            resultado = ficheroCompleto[comienzoUrl + 4:finUrl - 2]
+
+        return resultado
+    except:
+        logging.error("Error al recuperar el enlace de %s" % id)
+
+
+def darPermisosLectura(id):
+    try:
+        getDriveService().permissions().create(
+            body={"role": "reader", "type": "anyone"}, fileId=id).execute()
+    except:
+        logging.error("Error al asignar permisos a %s" % id)
 
 
 def getConexion():
@@ -133,7 +217,7 @@ def buscarCarpetasDrive():
         for file in response.get('files', []):
             carpetasDrive.append(file)
             contador = contador + 1
-            if contador >= 5 and modoPrueba:
+            if contador >= 10 and modoPrueba:
                 break
         pageToken = response.get('nextPageToken', None)
         if pageToken is None or modoPrueba:
@@ -142,7 +226,7 @@ def buscarCarpetasDrive():
     return carpetasDrive
 
 
-def obtenerRuta(idCarpeta, rango):
+def obtenerRuta(idCarpeta, completo):
     tree = []
     file = getDriveService().files().get(fileId=idCarpeta, fields='id, name, parents').execute()
     parent = file.get('parents')
@@ -155,16 +239,17 @@ def obtenerRuta(idCarpeta, rango):
                 break
 
             # Si el nombre de la carpeta esta contenido en la list del conf entonces se devuelve
-            if folder.get('name') in str(getCatEsp()):
+            if completo is False and folder.get('name') in str(getCatEsp()):
                 return folder.get('name')
+
             tree.append(folder.get('name'))
 
     tree.reverse()
     length = len(tree)
     ruta = ''
     for i in range(length):
-        if i == rango:
-            ruta = ruta + tree[i]
+        if (i == 1 and completo is False) or completo is True:
+            ruta = ruta + '/' + tree[i]
 
     return ruta
 
@@ -187,6 +272,10 @@ def getDriveService():
         driveService = build('drive', 'v3', cache_discovery=False, http=creds.authorize(Http()))
 
     return driveService
+
+
+def getNombreLimpio(nombre=None):
+    return re.sub(r"[^a-zA-Z0-9 .]", "", nombre)
 
 
 def getCatEsp():
