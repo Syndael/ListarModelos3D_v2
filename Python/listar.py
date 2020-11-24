@@ -81,12 +81,14 @@ def main():
 
             rutas = modeloRuta.split('/')
             rutas.remove(rutas[0])
+            rutas.remove(rutas[0])
             for etiqueta in rutas:
                 insertEtiqueta(modeloId, etiqueta)
 
     getConexion().commit()
     getCursor().close()
     getConexion().close()
+    enviarMensajeTelegram(getConfigParserGet('telegramMensaje'))
 
 
 def insertEnlace(modeloId, enlace):
@@ -134,12 +136,12 @@ def insertEtiqueta(modeloId, nuevaEtiqueta):
     queryGetIdEtiqueta = "SELECT ID FROM etiquetas WHERE ETIQUETA = %s"
     queryInsertModeloEtiqueta = "INSERT INTO modelo_x_etiqueta(ID_MODELO, ID_ETIQUETA) SELECT %s, %s FROM DUAL WHERE NOT EXISTS (SELECT * FROM modelo_x_etiqueta WHERE ID_MODELO = %s AND ID_ETIQUETA = %s)"
     getCursor().execute(queryInsertEtiqueta, (nuevaEtiqueta, nuevaEtiqueta))
-    etiquetaId = getCursor().lastrowid
-    if(etiquetaId is None):
-        getCursor().execute(queryGetIdEtiqueta, (nuevaEtiqueta, ))
-        for (id) in getCursor():
-            etiquetaId = id[0]
+    getCursor().execute(queryGetIdEtiqueta, (nuevaEtiqueta, ))
+    resultado = getCursor()
+    for (id) in resultado:
+        etiquetaId = id[0]
 
+    logging.info("modelo " + str(modeloId) + " etiqueta (" + nuevaEtiqueta + ") " + str(etiquetaId))
     getCursor().execute(queryInsertModeloEtiqueta, (modeloId, etiquetaId, modeloId, etiquetaId))
 
 
@@ -285,17 +287,13 @@ def getCatEsp():
     return categoriasEspeciales
 
 
-def enviarMensajeTelegram(urlFichero):
+def enviarMensajeTelegram(mensaje):
     telegramBotToken = getConfigParserGet('telegramBotToken')
     telegramChatId = getConfigParserGet('telegramChatId')
     telegramMensaje = getConfigParserGet('telegramMensaje')
 
     if(telegramBotToken and telegramChatId):
         telegramService = telebot.TeleBot(telegramBotToken)
-        mensaje = 'OK'
-        if(telegramMensaje):
-            mensaje = telegramMensaje.replace('[url]', urlFichero)
-
         telegramService.send_message(telegramChatId, mensaje)
 
 

@@ -14,8 +14,8 @@
 
 
 -- Volcando estructura de base de datos para modelos3d
-CREATE DATABASE IF NOT EXISTS `modelos3d` /*!40100 DEFAULT CHARACTER SET utf8 */;
-USE `modelos3d`;
+CREATE DATABASE IF NOT EXISTS `modelos3d_dev` /*!40100 DEFAULT CHARACTER SET utf8 */;
+USE `modelos3d_dev`;
 
 -- Volcando estructura para tabla modelos3d.enlaces
 CREATE TABLE IF NOT EXISTS `enlaces` (
