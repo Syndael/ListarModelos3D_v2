@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS `enlaces` (
   KEY `Índice 3` (`ID_WEB`),
   CONSTRAINT `FK__modelos` FOREIGN KEY (`ID_MODELO`) REFERENCES `modelos` (`ID`),
   CONSTRAINT `FK_enlaces_webs_enlaces` FOREIGN KEY (`ID_WEB`) REFERENCES `webs_enlaces` (`ID`)
-) ENGINE=InnoDB AUTO_INCREMENT=2537 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=1042 DEFAULT CHARSET=utf8;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -39,7 +39,7 @@ CREATE TABLE IF NOT EXISTS `etiquetas` (
   `ETIQUETA` varchar(60) NOT NULL DEFAULT '',
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Índice 2` (`ETIQUETA`)
-) ENGINE=InnoDB AUTO_INCREMENT=882 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=346 DEFAULT CHARSET=utf8;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -49,11 +49,12 @@ CREATE TABLE IF NOT EXISTS `modelos` (
   `NOMBRE` varchar(127) NOT NULL,
   `IMG` varchar(255) DEFAULT NULL,
   `PATH_DRIVE` varchar(255) DEFAULT NULL,
+  `ANTERIOR` bit(1) NOT NULL,
   `FECHA_INS` datetime NOT NULL DEFAULT current_timestamp(),
   `FECHA_MODIF` datetime DEFAULT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Índice 2` (`NOMBRE`)
-) ENGINE=InnoDB AUTO_INCREMENT=1647 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=674 DEFAULT CHARSET=utf8;
 
 -- La exportación de datos fue deseleccionada.
 
@@ -63,7 +64,9 @@ CREATE TABLE IF NOT EXISTS `modelo_x_etiqueta` (
   `ID_ETIQUETA` int(20) NOT NULL,
   PRIMARY KEY (`ID_MODELO`,`ID_ETIQUETA`),
   KEY `Índice 2` (`ID_MODELO`),
-  KEY `Índice 3` (`ID_ETIQUETA`)
+  KEY `Índice 3` (`ID_ETIQUETA`),
+  CONSTRAINT `FK_modelo_x_etiqueta_etiquetas` FOREIGN KEY (`ID_ETIQUETA`) REFERENCES `etiquetas` (`ID`),
+  CONSTRAINT `FK_modelo_x_etiqueta_modelos` FOREIGN KEY (`ID_MODELO`) REFERENCES `modelos` (`ID`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
 -- La exportación de datos fue deseleccionada.
@@ -75,7 +78,7 @@ CREATE TABLE IF NOT EXISTS `webs_enlaces` (
   `NOMBRE` varchar(60) DEFAULT NULL,
   PRIMARY KEY (`ID`),
   UNIQUE KEY `Índice 2` (`NOMBRE`)
-) ENGINE=InnoDB AUTO_INCREMENT=47 DEFAULT CHARSET=utf8;
+) ENGINE=InnoDB AUTO_INCREMENT=28 DEFAULT CHARSET=utf8;
 
 -- La exportación de datos fue deseleccionada.
 

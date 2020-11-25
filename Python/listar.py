@@ -48,6 +48,8 @@ def main():
 
     logging.info("Aniadiendo elementos de Drive...")
 
+    marcarModelosAntiguos()
+
     for i in sorted(dicCarpetas.keys()):
         dicCarpetasOrdenadas = {}
         for k in dicCarpetas[i]:
@@ -85,10 +87,26 @@ def main():
             for etiqueta in rutas:
                 insertEtiqueta(modeloId, etiqueta)
 
+    eliminarModelosAntiguos()
+
     getConexion().commit()
     getCursor().close()
     getConexion().close()
     enviarMensajeTelegram(getConfigParserGet('telegramMensaje'))
+
+
+def eliminarModelosAntiguos():
+    queryDeleteEnlaces = "DELETE FROM enlaces WHERE ID_MODELO IN (SELECT ID FROM modelos WHERE ANTERIOR = 1)"
+    queryDeleteEtiquetasAsociadas = "DELETE FROM modelo_x_etiqueta WHERE ID_MODELO IN (SELECT ID FROM modelos WHERE ANTERIOR = 1)"
+    queryDeleteModelos = "DELETE FROM modelos WHERE ANTERIOR = 1"
+    getCursor().execute(queryDeleteEnlaces)
+    getCursor().execute(queryDeleteEtiquetasAsociadas)
+    getCursor().execute(queryDeleteModelos)
+
+
+def marcarModelosAntiguos():
+    queryUpdate = "UPDATE modelos SET ANTERIOR = 1 WHERE ANTERIOR = 0"
+    getCursor().execute(queryUpdate)
 
 
 def insertEnlace(modeloId, enlace):
@@ -119,7 +137,7 @@ def getEnlaceWeb(enlace):
 
 
 def insertModelo(nombreMod, imagen, enlaceDriveMod):
-    queryInsert = "INSERT INTO modelos(NOMBRE, IMG, PATH_DRIVE) VALUES(%s, %s, %s) ON DUPLICATE KEY UPDATE IMG = %s, PATH_DRIVE = %s, FECHA_MODIF = NOW()"
+    queryInsert = "INSERT INTO modelos(NOMBRE, IMG, PATH_DRIVE, ANTERIOR) VALUES(%s, %s, %s, 0) ON DUPLICATE KEY UPDATE IMG = %s, PATH_DRIVE = %s, FECHA_MODIF = NOW(), ANTERIOR = 0"
     queryGetId = "SELECT ID FROM modelos WHERE NOMBRE = %s"
 
     getCursor().execute(queryInsert, (nombreMod, imagen, enlaceDriveMod, imagen, enlaceDriveMod))
@@ -141,7 +159,6 @@ def insertEtiqueta(modeloId, nuevaEtiqueta):
     for (id) in resultado:
         etiquetaId = id[0]
 
-    logging.info("modelo " + str(modeloId) + " etiqueta (" + nuevaEtiqueta + ") " + str(etiquetaId))
     getCursor().execute(queryInsertModeloEtiqueta, (modeloId, etiquetaId, modeloId, etiquetaId))
 
 
