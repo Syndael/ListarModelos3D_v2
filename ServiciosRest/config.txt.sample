@@ -1,0 +1,13 @@
+[config]
+bddUser = user
+bddPassword = e
+bddHost = 192.168.1.1
+bddPort = 0000
+bddDatabase = bbdd
+modoPrueba = yes
+categoriasEspeciales = [WOW]
+rutaCreedenciales = B:\credentials.json
+clienteSecreto = B:\client_secret.json
+telegramBotToken = 0000:AAAA
+telegramChatId = -32
+telegramMensaje = Listado actualizado [url]
