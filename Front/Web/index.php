@@ -44,7 +44,7 @@ $_SESSION["count"] = $data["count"];
 <body>
 
 <div class="container">
-    <a href="http://localhost/Saul/?start=1"><h1 class="text-center">SYNDAPRINT</h1></a>
+    <a href="?start=1"><h1 class="text-center">SYNDAPRINT</h1></a>
     <div>
         <form action="" method="get">
             <input type="hidden" name="page" value="<?= $paginacion ?>">
