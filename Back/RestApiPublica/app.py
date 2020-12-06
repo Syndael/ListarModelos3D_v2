@@ -5,15 +5,18 @@ from marshmallow_sqlalchemy import ModelSchema
 from marshmallow import fields
 from modelos import Modelo, ModeloSchema
 app = Flask(__name__)
-db = SQLAlchemy(app)
 
 
-@app.route('/modelos', methods=['GET'])
+@app.route('/modelos', methods=['GET', 'POST'])
 def index():
-    getModelos = Modelo.query.all()
+    start = int(request.args.get('start', 1))
+    limit = int(request.args.get('limit', getConfigParserGet('itemsPage')))
+
+    modelosPage = Modelo.query.paginate(start, limit, True, None)
+    getModelos = modelosPage.items
     modeloSchema = ModeloSchema(many=True)
     modelos = modeloSchema.dump(getModelos)
-    return make_response(jsonify({"modelo": modelos}))
+    return make_response(jsonify(getJsonPaginado(modelos, modelosPage.total, start, limit)))
 
 
 @app.route('/modelo/<id>', methods=['GET'])
@@ -24,6 +27,15 @@ def getModeloById(id):
     return make_response(jsonify({"modelo": modelo}))
 
 
+def getJsonPaginado(items, total, start, limit):
+    obj = {}
+    obj['start'] = start
+    obj['limit'] = limit
+    obj['count'] = total
+    obj['items'] = items
+    return obj
+
+
 if __name__ == "__main__":
     confConexion = 'mysql+pymysql://'
     confConexion = confConexion + getConfigParserGet('bddUser')
@@ -32,4 +44,7 @@ if __name__ == "__main__":
     confConexion = confConexion + ':' + getConfigParserGet('bddPort')
     confConexion = confConexion + '/' + getConfigParserGet('bddDatabase')
     app.config['SQLALCHEMY_DATABASE_URI'] = confConexion
-    app.run(debug=True)
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    db = SQLAlchemy(app)
+    app.run(host='0.0.0.0', port=int(getConfigParserGet('appPort')))
