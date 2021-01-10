@@ -11,8 +11,24 @@ app = Flask(__name__)
 def index():
     start = int(request.args.get('start', 1))
     limit = int(request.args.get('limit', getConfigParserGet('itemsPage')))
+    busca = request.args.get('busca', None)
+    orden = request.args.get('orden', None)
 
-    modelosPage = Modelo.query.paginate(start, limit, True, None)
+    modelosQuery = Modelo.query
+    if busca:
+        modelosQuery = modelosQuery.filter(Modelo.nombre.like('%' + busca + '%'))
+
+    if orden:
+        if orden == 'nombre':
+            modelosQuery = modelosQuery.order_by(Modelo.nombre)
+        elif orden == 'id':
+            modelosQuery = modelosQuery.order_by(Modelo.id)
+        else:
+            modelosQuery = modelosQuery.order_by(Modelo.fecha_ins)
+    else:
+        modelosQuery = modelosQuery.order_by(Modelo.fecha_ins)
+
+    modelosPage = modelosQuery.paginate(start, limit, True, None)
     getModelos = modelosPage.items
     modeloSchema = ModeloSchema(many=True)
     modelos = modeloSchema.dump(getModelos)

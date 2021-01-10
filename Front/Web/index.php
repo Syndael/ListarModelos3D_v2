@@ -2,22 +2,61 @@
 session_start();
 $ch = curl_init();
 
-if (isset($_GET["siguiente"])) {
-    if ((int)$_GET["page"] <= $_SESSION["count"]/20) {
-        $paginacion = (int)$_GET["page"]+ 1;
-    } else {
-        $paginacion = (int)$_GET["page"];
-    }
-} else if (isset($_GET["atras"])) {
-    if ((int)$_GET["page"] >= 1) {
-        $paginacion = (int)$_GET["page"]- 1;
-    } else {
-        $paginacion = (int)$_GET["page"];
-    }
-} else{
-    $paginacion = 1;
+if (isset($_GET["buscar"])) {
+  $_GET["pagina"] = 1;
 }
-curl_setopt($ch, CURLOPT_URL, "syndael.duckdns.org:8888/modelos?start=" . $paginacion);
+
+if (isset($_GET["paginado"])) {
+  $paginado = $_GET["paginado"];
+} else {
+  $paginado = 20;
+}
+
+if (isset($_GET["orden"])) {
+  $orden = $_GET["orden"];
+}
+
+if (isset($_GET["txt_buscar"])) {
+  $buscar = $_GET["txt_buscar"];
+} else {
+  $buscar = null;
+}
+
+if (isset($_GET["siguiente"])) {
+  if($_GET["pagina"] < ($_SESSION["count"] / $_GET["paginado"])){
+    $pagina = $_GET["pagina"] + 1;
+  } else {
+    $pagina = $_GET["pagina"];
+  }
+} else if (isset($_GET["atras"])) {
+  if(1 < $_GET["pagina"]){
+    $pagina = $_GET["pagina"] - 1;
+  } else {
+    $pagina = $_GET["pagina"];
+  }
+} else if (isset($_GET["pagina"])){
+  if($_GET["pagina"] >= ($_SESSION["count"] / $_GET["paginado"])){
+    $_GET["pagina"] = 1;
+  }
+  $pagina = $_GET["pagina"];
+} else {
+  $pagina = 1;
+}
+
+$url_busqueda = "syn3d.duckdns.org:8888/modelos?";
+$url_busqueda = $url_busqueda . "start=" . $pagina;
+
+if($paginado != null){
+  $url_busqueda = $url_busqueda . "&limit=" . $paginado;
+}
+if($buscar != null){
+  $url_busqueda = $url_busqueda . "&busca=" . $buscar;
+}
+if($orden != null){
+  $url_busqueda = $url_busqueda . "&orden=" . $orden;
+}
+
+curl_setopt($ch, CURLOPT_URL, $url_busqueda);
 
 curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 $res = curl_exec($ch);
@@ -26,6 +65,9 @@ curl_close($ch);
 
 $data = json_decode($res, true);
 $_SESSION["count"] = $data["count"];
+
+$pagina_total = "/" . round($_SESSION["count"] / $paginado + 0.5, 0, PHP_ROUND_HALF_ODD);
+$pagina_count = "Registros: " . $_SESSION["count"];
 ?>
 
 <!doctype html>
@@ -39,17 +81,33 @@ $_SESSION["count"] = $data["count"];
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
           integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
-    <title>Synda</title>
+    <title>Syndaverse</title>
 </head>
 <body>
 
 <div class="container">
-    <a href="http://localhost/Saul/?start=1"><h1 class="text-center">SYNDAPRINT</h1></a>
+    <a href="http://syn3d.duckdns.org:9442/"><h1 class="text-center">Syndaverse</h1></a>
     <div>
-        <form action="" method="get">
-            <input type="hidden" name="page" value="<?= $paginacion ?>">
-            <button type="submit" name="siguiente">SIGUIENTE</button>
-            <button type="submit" name="atras">ATRAS</button>
+        <form style="text-align: center;" action="" method="get">
+            <input type="text" name="txt_buscar" value="<?= $buscar ?>">
+            <button type="submit" name="buscar">Buscar</button>
+            <br />
+            <button type="submit" name="atras">Atras</button>
+            <input style="width: 40px;" onchange="this.form.submit()" type="text" name="pagina" value="<?= $pagina ?>" /><?= $pagina_total ?>
+            <button type="submit" name="siguiente">Siguiente</button>
+            <?= $pagina_count ?>
+
+            <select name="paginado" onchange="this.form.submit()">
+              <option <?php echo $paginado == '5' ? 'selected' : ''?>>5</option>
+              <option <?php echo $paginado == '10' ? 'selected' : ''?>>10</option>
+              <option <?php echo $paginado == '20' ? 'selected' : ''?>>20</option>
+              <option <?php echo $paginado == '50' ? 'selected' : ''?>>50</option>
+            </select>
+
+            <select name="orden" onchange="this.form.submit()">
+              <option value="fecha_ins" <?php echo $orden == 'fecha_ins' ? 'selected' : ''?>>Reciente</option>
+              <option value="nombre" <?php echo $orden == 'nombre' ? 'selected' : ''?>>Nombre</option>
+            </select>
         </form>
     </div>
     <div class="card-deck justify-content-center">
@@ -65,7 +123,6 @@ $_SESSION["count"] = $data["count"];
                 <hr>
                 <div class="card-body">
                     <h5 class="card-title"><?= $producto["nombre"] ?></h5>
-
                 </div>
             </div>
             <?php if ($elementoActual === $limite - 1) echo "</div>";
