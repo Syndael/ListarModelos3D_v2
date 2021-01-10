@@ -3,7 +3,7 @@ from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow_sqlalchemy import ModelSchema
 from marshmallow import fields
-from modelos import Modelo, ModeloSchema
+from modelos import Modelo, ModeloSchema, Enlace, EnlaceSchema
 app = Flask(__name__)
 
 
@@ -22,11 +22,11 @@ def index():
         if orden == 'nombre':
             modelosQuery = modelosQuery.order_by(Modelo.nombre)
         elif orden == 'id':
-            modelosQuery = modelosQuery.order_by(Modelo.id)
+            modelosQuery = modelosQuery.order_by(Modelo.id.desc())
         else:
-            modelosQuery = modelosQuery.order_by(Modelo.fecha_ins)
+            modelosQuery = modelosQuery.order_by(Modelo.fecha_ins.desc())
     else:
-        modelosQuery = modelosQuery.order_by(Modelo.fecha_ins)
+        modelosQuery = modelosQuery.order_by(Modelo.fecha_ins.desc())
 
     modelosPage = modelosQuery.paginate(start, limit, True, None)
     getModelos = modelosPage.items
@@ -41,6 +41,34 @@ def getModeloById(id):
     modeloSchema = ModeloSchema()
     modelo = modeloSchema.dump(getModelo)
     return make_response(jsonify({"modelo": modelo}))
+
+
+@app.route('/modelosEnlace', methods=['GET', 'POST'])
+def getModelosEnlace():
+    start = int(request.args.get('start', 1))
+    limit = int(request.args.get('limit', getConfigParserGet('itemsPage')))
+    busca = request.args.get('busca', None)
+    orden = request.args.get('orden', None)
+
+    enlacesQuery = Enlace.query.join(Modelo, Modelo.id == Enlace.id_modelo, isouter=True)
+    if busca:
+        enlacesQuery = enlacesQuery.filter(Modelo.nombre.like('%' + busca + '%'))
+
+    if orden:
+        if orden == 'nombre':
+            enlacesQuery = enlacesQuery.order_by(Modelo.nombre)
+        elif orden == 'id':
+            enlacesQuery = enlacesQuery.order_by(Modelo.id)
+        else:
+            enlacesQuery = enlacesQuery.order_by(Modelo.fecha_ins)
+    else:
+        enlacesQuery = enlacesQuery.order_by(Modelo.fecha_ins)
+
+    enlacesPage = enlacesQuery.paginate(start, limit, True, None)
+    getEnlaces = enlacesPage.items
+    enlaceSchema = EnlaceSchema(many=True)
+    enlaces = enlaceSchema.dump(getEnlaces)
+    return make_response(jsonify(getJsonPaginado(enlaces, enlacesPage.total, start, limit)))
 
 
 def getJsonPaginado(items, total, start, limit):

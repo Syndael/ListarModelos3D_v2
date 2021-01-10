@@ -73,15 +73,38 @@ $pagina_count = "Registros: " . $_SESSION["count"];
 <!doctype html>
 <html lang="es">
 <head>
-    <!-- Required meta tags -->
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css"
-          integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
 
-    <title>Syndaverse</title>
+  <style>
+    div.card{
+      margin:5px;
+      border:2px solid #eee;
+      background:#fff;
+      border-radius:10px;
+      width:250px;
+      text-align:center;
+      height:500px;
+      float:left;
+    }
+
+    div.card:hover {
+     border:2px solid #777;
+    }
+
+    div.card img {
+     width:95%;
+     height:auto;
+     padding:5px;
+    }
+
+    body {
+     background:#ccc;
+    }
+  </style>
+  <title>Syndaverse</title>
 </head>
 <body>
 
@@ -113,16 +136,16 @@ $pagina_count = "Registros: " . $_SESSION["count"];
     <div class="card-deck justify-content-center">
         <?php
         $elementoActual = 1;
-        $limite = 5;
-        if ($data !== false) foreach ($data["items"] as $producto) :
+        $limite = 6;
+        if ($data !== false) foreach ($data["items"] as $modelo) :
             ?>
             <!--AQUI VA CADA TARJETA DE LA BUSQUEDA-->
             <?php if ($elementoActual === 1) echo "<div class='row'>" ?>
             <div class="card col-4 mb-4">
-                <img class="card-img-top img-fluid" src="<?= $producto["img"] ?>" alt="<?= $producto["nombre"] ?>"
+                <img class="card-img-top img-fluid" src="<?= $modelo["img"] ?>" alt="<?= $modelo["nombre"] ?>"
                 <hr>
                 <div class="card-body">
-                    <h5 class="card-title"><?= $producto["nombre"] ?></h5>
+                    <h5 class="card-title"><?= $modelo["nombre"] ?></h5>
                 </div>
             </div>
             <?php if ($elementoActual === $limite - 1) echo "</div>";

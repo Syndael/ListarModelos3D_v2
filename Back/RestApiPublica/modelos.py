@@ -2,6 +2,8 @@ from flask import Flask, request, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from marshmallow_sqlalchemy import ModelSchema
 from marshmallow import fields
+from sqlalchemy import ForeignKey
+from sqlalchemy.orm import relationship
 
 db = SQLAlchemy()
 
@@ -40,3 +42,33 @@ class ModeloSchema(ModelSchema):
     anterior = fields.Boolean(required=True)
     fecha_ins = fields.DateTime(required=True)
     fecha_modif = fields.DateTime(required=True)
+
+
+class Enlace(db.Model):
+    __tablename__ = 'enlaces'
+
+    id = db.Column(db.Integer(), primary_key=True)
+    id_modelo = db.Column(db.Integer(), ForeignKey("modelos.id"))
+    id_web = db.Column(db.Integer())
+    enlace = db.Column(db.String(255))
+
+    modelo = relationship("Modelo", foreign_keys=[id_modelo])
+
+    def __init__(self, id_modelo, id_web, enlace, modelo):
+        self.id_modelo = id_modelo
+        self.id_web = id_web
+        self.enlace = enlace
+        self.modelo = modelo
+
+    def json(self):
+        return {"id_modelo": self.id_modelo, "id_web": self.id_web, "enlace": self.enlace, "modelo": self.modelo}
+
+
+class EnlaceSchema(ModelSchema):
+    class Meta(ModelSchema.Meta):
+        enlace = Enlace
+        sqla_session = db.session
+    id = fields.Number(dump_only=True)
+    id_modelo = fields.Number(required=True)
+    id_web = fields.Number(required=False)
+    enlace = fields.String(required=True)
